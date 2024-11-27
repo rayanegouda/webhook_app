@@ -24,8 +24,7 @@ class WooCommerceWebhook(BaseModel):
 async def receive_webhook(request: Request):
     try:
         # Lecture des données brutes envoyées par WooCommerce
-        payload = await request.json()
-        
+        payload = await request.json()   
         # Enregistrer les données dans un fichier (optionnel)
         logging.info(f"Webhook received: {payload}")
 
@@ -33,19 +32,14 @@ async def receive_webhook(request: Request):
 async def receive_webhook(payload: WooCommerceWebhook):
     logging.info(f"Webhook received: {payload}")
     return {"status": "success", "message": "Webhook processed"}
-
-
         # Exemple de traitement de données spécifiques (facultatif)
         if "id" in payload:
             logging.info(f"Processing order ID: {payload['id']}")
-
         # Réponse avec un code 200 pour indiquer la réussite
         return {"status": "success", "message": "Webhook received and processed"}
-
     except Exception as e:
         logging.error(f"Error processing webhook: {str(e)}")
         raise HTTPException(status_code=400, detail="Invalid payload")
-
 
 # Route de test
 @app.get("/")
