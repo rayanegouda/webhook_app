@@ -29,6 +29,12 @@ async def receive_webhook(request: Request):
         # Enregistrer les données dans un fichier (optionnel)
         logging.info(f"Webhook received: {payload}")
 
+@app.post("/webhook-full")
+async def receive_webhook(payload: WooCommerceWebhook):
+    logging.info(f"Webhook received: {payload}")
+    return {"status": "success", "message": "Webhook processed"}
+
+
         # Exemple de traitement de données spécifiques (facultatif)
         if "id" in payload:
             logging.info(f"Processing order ID: {payload['id']}")
