@@ -11,7 +11,7 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
 # Votre secret WooCommerce
-WEBHOOK_SECRET = "votre_secret"  # Remplacez par le secret de votre webhook WooCommerce
+WEBHOOK_SECRET = "N$D~$08&+c9=9?>ee&~`MM7S8LOI]8Pz|A9~#~KrArY^?vUR8@"  # Remplacez par le secret de votre webhook WooCommerce
 
 
 @app.post("/webhook")
