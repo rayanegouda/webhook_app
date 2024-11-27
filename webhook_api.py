@@ -1,61 +1,56 @@
+import hmac
+import hashlib
+import base64
 from fastapi import FastAPI, Request, HTTPException
-from pydantic import BaseModel
 import logging
 
 # Initialisation de l'application FastAPI
 app = FastAPI()
 
-# Configuration du logger pour enregistrer les données du webhook
-logging.basicConfig(filename="webhook_log.txt", level=logging.INFO, format="%(asctime)s - %(message)s")
+# Configuration du logger
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
-# Modèle pour les données envoyées par WooCommerce
-class WooCommerceWebhook(BaseModel):
-    id: int
-    status: str
-    total: str
-    order_key: str
-    created_via: str
-    customer_id: int = None
-    line_items: list = []
-    shipping: dict = None
+# Votre secret WooCommerce
+WEBHOOK_SECRET = "votre_secret"  # Remplacez par le secret de votre webhook WooCommerce
 
-# Endpoint pour recevoir les webhooks (lecture brute des données)
-@app.post("/webhook-raw")
-async def receive_webhook_raw(request: Request):
-    try:
-        # Lecture des données brutes envoyées par WooCommerce
-        payload = await request.json()   
-        
-        # Enregistrer les données dans un fichier
-        logging.info(f"Webhook received (raw): {payload}")
 
-        # Exemple de traitement de données spécifiques
-        if "id" in payload:
-            logging.info(f"Processing order ID: {payload['id']}")
-
-        # Réponse avec un code 200 pour indiquer la réussite
-        return {"status": "success", "message": "Webhook received and processed"}
-    except Exception as e:
-        logging.error(f"Error processing webhook: {str(e)}")
-        raise HTTPException(status_code=400, detail="Invalid payload")
-
-# Endpoint pour recevoir les webhooks avec un modèle Pydantic
 @app.post("/webhook")
-async def receive_webhook(payload: WooCommerceWebhook):
+async def handle_webhook(request: Request):
     try:
-        # Enregistrer les données dans un fichier
-        logging.info(f"Webhook received (Pydantic): {payload}")
+        # Lire le corps brut de la requête
+        body = await request.body()
+        
+        # Récupérer la signature envoyée par WooCommerce
+        signature = request.headers.get("X-WC-Webhook-Signature")
 
-        # Exemple de traitement
-        logging.info(f"Processing order ID: {payload.id}, Status: {payload.status}")
+        # Déterminer si la requête contient une signature
+        if signature:
+            computed_signature = base64.b64encode(
+                hmac.new(WEBHOOK_SECRET.encode(), body, hashlib.sha256).digest()
+            ).decode()
 
-        # Réponse avec un code 200 pour indiquer la réussite
-        return {"status": "success", "message": "Webhook processed"}
+            if hmac.compare_digest(signature, computed_signature):
+                logging.info("Requête AVEC signature valide.")
+                signature_status = "avec signature valide"
+            else:
+                logging.error("Requête AVEC signature, mais invalide.")
+                signature_status = "avec signature invalide"
+                raise HTTPException(status_code=403, detail="Invalid signature")
+        else:
+            logging.warning("Requête SANS signature.")
+            signature_status = "sans signature"
+
+        # Traiter les données du webhook
+        payload = await request.json()
+        logging.info(f"Payload reçu : {payload}")
+
+        # Exemple de réponse
+        return {
+            "status": "success",
+            "message": f"Webhook processed ({signature_status})",
+            "data": payload,
+        }
     except Exception as e:
-        logging.error(f"Error processing webhook: {str(e)}")
-        raise HTTPException(status_code=400, detail="Invalid payload")
+        logging.error(f"Erreur lors du traitement du webhook : {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erreur : {str(e)}")
 
-# Route de test
-@app.get("/")
-async def root():
-    return {"message": "WooCommerce Webhook API is running"}
