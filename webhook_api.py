@@ -1,3 +1,4 @@
+import os
 import hmac
 import hashlib
 import base64
@@ -11,8 +12,9 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
 # Votre secret WooCommerce
-WEBHOOK_SECRET = "N$D~$08&+c9=9?>ee&~`MM7S8LOI]8Pz|A9~#~KrArY^?vUR8@"  # Remplacez par le secret de votre webhook WooCommerce
-
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
+if not WEBHOOK_SECRET:
+    raise Exception("WEBHOOK_SECRET n'est pas défini dans les variables d'environnement")
 
 @app.post("/webhook")
 async def handle_webhook(request: Request):
