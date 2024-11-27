@@ -1,13 +1,10 @@
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
 import logging
-
 # Initialisation de l'application FastAPI
 app = FastAPI()
-
 # Configuration du logger pour enregistrer les données du webhook
 logging.basicConfig(filename="webhook_log.txt", level=logging.INFO, format="%(asctime)s - %(message)s")
-
 # Modèle pour les données envoyées par WooCommerce (facultatif)
 class WooCommerceWebhook(BaseModel):
     id: int
