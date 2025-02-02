@@ -17,11 +17,24 @@ WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 if not WEBHOOK_SECRET:
     raise Exception("WEBHOOK_SECRET n'est pas défini dans les variables d'environnement")
 
-# Kafka Configuration
-KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "webhook_topic")
-KAFKA_CONFIG = {
-    "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
-}
+# Fonction pour lire la configuration Kafka depuis client.properties
+def read_kafka_config():
+    config = {}
+    try:
+        with open("client.properties") as file:
+            for line in file:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    key, value = line.split("=", 1)
+                    config[key.strip()] = value.strip()
+    except Exception as e:
+        logging.error(f"Erreur lors de la lecture du fichier client.properties: {e}")
+        raise Exception("Impossible de charger la configuration Kafka")
+    return config
+
+# Charger la configuration Kafka
+KAFKA_CONFIG = read_kafka_config()
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "ecommerce.orders.created")
 
 # Création du producteur Kafka
 producer = Producer(KAFKA_CONFIG)
