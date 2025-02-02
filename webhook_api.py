@@ -55,6 +55,14 @@ def produce_to_kafka(topic, key, value):
     except Exception as e:
         logging.error(f"Erreur lors de l'envoi du message Kafka: {str(e)}")
 
+def produce_to_kafka(topic, value):
+    try:
+        producer.produce(topic, value=value)
+        producer.flush()
+        logging.info(f"Message envoyé à Kafka -> Topic: {topic}, Value: {value}")
+    except Exception as e:
+        logging.error(f"Erreur lors de l'envoi du message Kafka: {str(e)}")
+
 @app.post("/webhook")
 async def handle_webhook(request: Request):
     try:
@@ -82,7 +90,7 @@ async def handle_webhook(request: Request):
         logging.info(f"Payload reçu : {payload}")
         
         # Envoyer le payload à Kafka
-        produce_to_kafka(KAFKA_TOPIC, key="webhook", value=str(payload))
+        produce_to_kafka(KAFKA_TOPIC, value=str(payload))
         
         return {
             "status": "success",
