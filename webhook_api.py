@@ -18,6 +18,7 @@ if not WEBHOOK_SECRET:
     raise Exception("WEBHOOK_SECRET n'est pas défini dans les variables d'environnement")
 
 # Fonction pour lire la configuration Kafka depuis client.properties
+# Fonction pour lire la configuration Kafka depuis client.properties et remplacer par les variables d'environnement
 def read_kafka_config():
     config = {}
     try:
@@ -26,7 +27,14 @@ def read_kafka_config():
                 line = line.strip()
                 if line and not line.startswith("#"):
                     key, value = line.split("=", 1)
-                    config[key.strip()] = value.strip()
+                    value = value.strip()
+
+                    # Si la valeur est un placeholder {{VAR_NAME}}, on remplace par la variable d'environnement
+                    if value.startswith("{{") and value.endswith("}}"):
+                        env_var = value[2:-2]  # Supprime les accolades {{ }}
+                        value = os.getenv(env_var, "")  # Remplace par la variable d'env ou "" si non définie
+                    
+                    config[key.strip()] = value
     except Exception as e:
         logging.error(f"Erreur lors de la lecture du fichier client.properties: {e}")
         raise Exception("Impossible de charger la configuration Kafka")
