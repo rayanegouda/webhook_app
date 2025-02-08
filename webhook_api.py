@@ -66,6 +66,8 @@ def produce_to_kafka(topic, value):
 @app.post("/webhook")
 async def handle_webhook(request: Request):
     try:
+        start_time = time.time()
+        print(f"⏳ Webhook reçu à {time.strftime('%H:%M:%S')}")
         # Lire le corps brut de la requête
         body = await request.body()
         
@@ -91,6 +93,8 @@ async def handle_webhook(request: Request):
         
         # Envoyer le payload à Kafka
         produce_to_kafka(KAFKA_TOPIC, value=str(payload))
+        end_time = time.time()
+        print(f"✅ Webhook traité et envoyé à Kafka en {end_time - start_time:.2f} secondes")
         
         return {
             "status": "success",
