@@ -4,6 +4,7 @@ import hmac
 import hashlib
 import base64
 import logging
+import asyncio
 from fastapi import FastAPI, Request, HTTPException
 from confluent_kafka import Producer
 
