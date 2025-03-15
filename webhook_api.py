@@ -34,7 +34,7 @@ def read_kafka_config():
                     if value.startswith("{{") and value.endswith("}}"):
                         env_var = value[2:-2]  # Supprime les accolades {{ }}
                         value = os.getenv(env_var, "")  # Remplace par la variable d'env ou "" si non définie
-                    
+
                     config[key.strip()] = value
     except Exception as e:
         logging.error(f"Erreur lors de la lecture du fichier client.properties: {e}")
@@ -50,19 +50,27 @@ producer = Producer(KAFKA_CONFIG)
 
 def produce_to_kafka(topic, key, value):
     try:
-        producer.produce(topic, key=key, value=value)
-        producer.flush()
+        producer.produce(topic, key=key, value=value, callback=delivery_report)
+        producer.poll(0)
         logging.info(f"Message envoyé à Kafka -> Topic: {topic}, Key: {key}, Value: {value}")
     except Exception as e:
         logging.error(f"Erreur lors de l'envoi du message Kafka: {str(e)}")
 
 def produce_to_kafka(topic, value):
     try:
-        producer.produce(topic, value=value)
-        producer.flush()
+        producer.produce(topic, value=value, callback=delivery_report)
+        producer.poll(0)
         logging.info(f"Message envoyé à Kafka -> Topic: {topic}, Value: {value}")
     except Exception as e:
         logging.error(f"Erreur lors de l'envoi du message Kafka: {str(e)}")
+
+def delivery_report(err, msg):
+    """ Fonction callback pour afficher si le message est bien envoyé """
+    if err is not None:
+        logging.error(f"❌ Erreur Kafka: {err}")
+    else:
+        logging.info(f"✅ Message envoyé à {msg.topic()} (partition {msg.partition()})")
+
 
 @app.post("/webhook")
 async def handle_webhook(request: Request):
@@ -71,7 +79,7 @@ async def handle_webhook(request: Request):
         print(f"⏳ Webhook reçu à {time.strftime('%H:%M:%S')}")
         # Lire le corps brut de la requête
         body = await request.body()
-        
+
         # Récupérer la signature envoyée par WooCommerce
         signature = request.headers.get("X-WC-Webhook-Signature")
 
@@ -91,12 +99,12 @@ async def handle_webhook(request: Request):
         # Traiter les données du webhook
         payload = await request.json()
         logging.info(f"Payload reçu : {payload}")
-        
+
         # Envoyer le payload à Kafka
         produce_to_kafka(KAFKA_TOPIC, value=str(payload))
         end_time = time.time()
         print(f"✅ Webhook traité et envoyé à Kafka en {end_time - start_time:.2f} secondes")
-        
+
         return {
             "status": "success",
             "message": "Webhook processed and sent to Kafka",
