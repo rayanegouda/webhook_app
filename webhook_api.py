@@ -77,39 +77,56 @@ async def handle_webhook(request: Request):
     try:
         start_time = time.time()
         print(f"⏳ Webhook reçu à {time.strftime('%H:%M:%S')}")
-        # Lire le corps brut de la requête
-        body = await request.body()
 
-        # Récupérer la signature envoyée par WooCommerce
+        # Lire le corps brut de la requête AVEC TIMEOUT
+        body = await asyncio.wait_for(request.body(), timeout=5)  # ✅ Timeout max 5 sec
+
+        # Vérifier si le body est vide
+        if not body:
+            logging.error("🚨 Requête webhook reçue avec un body vide !")
+            raise HTTPException(status_code=400, detail="Requête Webhook vide")
+
+        # Vérification du type de requête
+        content_type = request.headers.get("Content-Type", "")
+        if "application/json" not in content_type:
+            logging.error(f"🚨 Type de contenu incorrect : {content_type}")
+            raise HTTPException(status_code=400, detail="Type de contenu incorrect, JSON attendu")
+
+        # Récupérer la signature WooCommerce
         signature = request.headers.get("X-WC-Webhook-Signature")
-
-        # Vérifier la signature
         if signature:
             computed_signature = base64.b64encode(
                 hmac.new(WEBHOOK_SECRET.encode(), body, hashlib.sha256).digest()
             ).decode()
-
             if not hmac.compare_digest(signature, computed_signature):
-                logging.error("Requête AVEC signature, mais invalide.")
-                raise HTTPException(status_code=403, detail="Invalid signature")
-            logging.info("Requête AVEC signature valide.")
-        else:
-            logging.warning("Requête SANS signature.")
+                logging.error("🚨 Signature WooCommerce invalide.")
+                raise HTTPException(status_code=403, detail="Signature incorrecte")
+            logging.info("🔑 Signature valide.")
 
-        # Traiter les données du webhook
-        payload = await request.json()
-        logging.info(f"Payload reçu : {payload}")
+        # Lire le JSON du body
+        payload = await asyncio.wait_for(request.json(), timeout=5)  # ✅ Timeout max 5 sec
+        logging.info(f"📦 Payload reçu : {payload}")
 
-        # Envoyer le payload à Kafka
+        # Vérifier que le JSON contient des données
+        if not payload:
+            logging.error("🚨 Le JSON reçu est vide !")
+            raise HTTPException(status_code=400, detail="Le JSON reçu est vide")
+
+        # Envoyer à Kafka
         produce_to_kafka(KAFKA_TOPIC, value=str(payload))
         end_time = time.time()
-        print(f"✅ Webhook traité et envoyé à Kafka en {end_time - start_time:.2f} secondes")
+        print(f"✅ Webhook traité en {end_time - start_time:.2f} secondes")
 
         return {
             "status": "success",
             "message": "Webhook processed and sent to Kafka",
             "data": payload,
         }
+
+    except asyncio.TimeoutError:
+        logging.error("⏳ Timeout lors de la lecture du webhook !")
+        raise HTTPException(status_code=408, detail="Timeout lors du traitement du webhook")
+
     except Exception as e:
-        logging.error(f"Erreur lors du traitement du webhook : {str(e)}")
+        logging.error(f"🚨 Erreur : {str(e)}")
         raise HTTPException(status_code=400, detail=f"Erreur : {str(e)}")
